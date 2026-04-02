@@ -67,7 +67,15 @@ Open Cursor chat and run:
 
 This analyzes your codebase and creates `.cursor/resource/repo-explainer.md` — a comprehensive onboarding document that all other commands reference. You only need to do this once (and re-run when the codebase changes significantly).
 
-### 4. Start using the commands
+### 4. Add `tasks/` to your `.gitignore`
+
+The `tasks/` directory is where the AI writes its analysis — generated plans, trackers, and question logs. You don't want to accidentally push this to your repo.
+
+```bash
+echo "tasks/" >> .gitignore
+```
+
+### 5. Start using the commands
 
 You're ready. See the workflow section below.
 
@@ -196,18 +204,83 @@ Guides you through structured debugging: understand the problem, form hypotheses
 /debug Tests pass locally but fail in CI
 ```
 
+## How I Use It — The `plan/` + `tasks/` Workflow
+
+This toolkit uses two directories to separate **your context** from the **AI's analysis**:
+
+```
+your-project/
+├── plan/                     ← YOUR space — you create and edit this
+│   ├── TASK-123/
+│   │   ├── requirements.txt  # Whatever context you have about the task
+│   │   ├── api-spec.pdf      # Sheet exports, PDFs, design docs
+│   │   └── notes.md          # Your own notes, acceptance criteria, etc.
+│   └── ASHU-456/
+│       └── ticket-export.csv
+│
+├── tasks/                    ← AI's space — generated, don't touch
+│   ├── TASK-123/
+│   │   ├── plan.md           # AI-generated implementation plan
+│   │   ├── questions.md      # Blockers and open questions
+│   │   └── tracker.md        # Change log as work progresses
+│   └── ASHU-456/
+│       └── ...
+│
+└── .gitignore                ← tasks/ should be in here
+```
+
+### The flow
+
+**1. You create a folder in `plan/` with your task ID and dump everything you have:**
+
+```bash
+mkdir -p plan/TASK-123
+# Copy in whatever context you have — requirements, exports, screenshots, notes
+```
+
+**2. You run the `/task` command in Cursor, pointing it at your folder:**
+
+```
+/task @plan/TASK-123
+```
+
+The `@plan/TASK-123` tells Cursor to attach that folder's contents as context. The AI reads your materials, analyzes the codebase, and generates its structured plan in `tasks/TASK-123/`.
+
+**3. From there, every other command works off `tasks/`:**
+
+```
+/simplify @tasks/TASK-123         ← Beginner-friendly version of the plan
+/ask @tasks/TASK-123 <question>   ← Ask about the task
+/unblock @tasks/TASK-123          ← Resolve open questions
+/execute @tasks/TASK-123          ← Implement step by step
+/review                           ← Review your changes before PR
+/debug <error>                    ← When things break
+```
+
+**4. You keep track by checking `tasks/TASK-123/tracker.md`** — the AI updates it after every step.
+
+### Why two directories?
+
+| | `plan/` | `tasks/` |
+|---|---------|---------|
+| **Who writes** | You | The AI |
+| **What's in it** | Raw context — PDFs, exports, notes, whatever you have | Structured analysis — plan, questions, tracker |
+| **Should you edit it?** | Yes, it's yours | No, let the AI manage it |
+| **Git** | Commit if you want to share context with your team | Add to `.gitignore` — it's generated |
+
 ## Recommended Workflow
 
 ```
-/explain-repo              ← Once, when you join the project
+/explain-repo                      ← Once, when you join the project
 
-/task <description>        ← Plan the work
-/simplify <task-id>        ← Get a beginner-friendly version
-/ask <task-id> <question>  ← Clarify anything confusing
-/unblock <task-id>         ← Resolve open questions
-/execute <task-id>         ← Implement step by step
-/review                    ← Review your changes before PR
-/debug <error>             ← When things break
+mkdir -p plan/TASK-123             ← Create your task folder, add your context
+/task @plan/TASK-123               ← AI analyzes and creates the plan
+/simplify @tasks/TASK-123          ← Get a beginner-friendly version
+/ask @tasks/TASK-123 <question>    ← Clarify anything confusing
+/unblock @tasks/TASK-123           ← Resolve open questions
+/execute @tasks/TASK-123           ← Implement step by step
+/review                            ← Review your changes before PR
+/debug <error>                     ← When things break
 ```
 
 ## How the Rules Work
@@ -257,3 +330,6 @@ The commands are independent. Use `/review` and `/debug` on their own without ev
 
 **Should I commit the `.cursor` folder?**
 Yes — commit it so the whole team gets the same commands and rules. Add `.cursor/resource/repo-explainer.md` to `.gitignore` if you prefer to generate it locally, or commit it as shared documentation.
+
+**What should go in `.gitignore`?**
+At minimum, add `tasks/` — it's AI-generated working files. Optionally add `.cursor/resource/repo-explainer.md` if you'd rather generate it locally. The `plan/` directory is up to you — commit it if you want to share task context with your team.
